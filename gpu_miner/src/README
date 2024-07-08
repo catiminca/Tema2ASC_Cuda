@@ -1,0 +1,37 @@
+Minca Ecaterina-Ioana 334CAb
+
+Tema a constat in transformarea unui cod care ruleaza mai greu pe cpu pentru gasirea
+unui nonce in unul care e optimizat cu ajutorul thread-urilor pe gpu si realizeaza
+cautarea mult mai rapid.
+
+Functia de findNonce:
+Pentru a putea paraleliza problema cu ajutorul thread-urilor, am folosit formula invatata
+la APD cu start si stop, care practic imparte "munca" la cate thread-uri avem in total in
+toate blocurile. Formulele sunt: int start = ID * (double)N / P;
+int end = min((ID + 1) * (double)N / P, N);
+La mine, id-ul thread-ului este dat de threadIdx.x + blockIdx.x * blockDim.x, numarul
+total de elemente pe care se face cautarea N va fi MAX_NONCE, iar numarul de thread-uri
+P va fi dat de numarul total de thread-uri per block(ales de mine 256) inmultit cu numarul
+de block-uri, adica numarul de multiprocesoare pe care le pot utiliza, obtinut cu
+cudaGetDeviceProperties.
+Pentru a nu fi modificate la fiecare thread hash-ul si contentul, am realizat niste copii
+la inceput ale acestora, iar la gasirea nonce-ului, cele originale vor fi actualizate cu
+valorile gasite. Cu ajutorul unei variabile(flag), voi marca faptul ca am gasit nonce-ul
+si cautarea se poate termina. Aceasta actualizare a variabilei a trebuit sa fie facuta
+atomic cu ajutorul atomicAdd, astfel daca aceasta s-a modificat si are valoarea 1,
+inseamna ca se poate termina cautarea.
+
+Main:
+In main, am alocat memorie pentru a putea folosi in kernel anumite informatii din host,
+precum block_hash, block_content, difficulty_5_zeros, nonce si flag si am copiat valorile
+pe care acestea le aveau, daca aveau. La final, am copiat din device in host, valorile
+produse de functia findNonce, adica block_hash-ul si nonce-ul gasite.
+
+Rulari:
+Am rulat programul de 5 ori si am obtinut o medie de timp de 0.042 secunde. Se poate
+observa o optimizare a timpului de rulare, cel de pe cpu fiind de aproximativ 2 secunde.
+
+Observatii:
+Mi s-a parut foarte interesanta conceptual tema, sa aflu diverse informatii despre
+blockchain si despre algoritmul de consens.
+De asemenea, foarte util ca ne-ati pus la dispozitie toate acele functii deja in utils.
